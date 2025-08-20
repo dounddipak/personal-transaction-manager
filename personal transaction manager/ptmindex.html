@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Personal Transaction Manager</title>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #d3cce3, #e9e4f0);
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      color: #4B0082;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    nav {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    nav button {
+      padding: 10px 15px;
+      margin: 0 5px;
+      border: none;
+      border-radius: 5px;
+      background-color: #6a5acd;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    nav button:hover {
+      background-color: #483d8b;
+    }
+    .section {
+      display: none;
+      background: white;
+      padding: 20px;
+      margin: auto;
+      max-width: 500px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    input, button {
+      margin: 10px 0;
+      padding: 10px;
+      width: 100%;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    table, th, td {
+      border: 1px solid #aaa;
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+    }
+    #output {
+      text-align: center;
+      font-weight: bold;
+      margin: 15px 0;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+
+<h1>📒 Personal Transaction Manager</h1>
+
+<nav>
+  <button onclick="showSection('addUser')">Add User</button>
+  <button onclick="showSection('login')">Login</button>
+  <button onclick="showSection('credit')">Credit</button>
+  <button onclick="showSection('debit')">Debit</button>
+  <button onclick="showSection('transactions')">Transactions</button>
+  <button onclick="logout()">Logout</button>
+</nav>
+
+<div id="output"></div>
+
+<div id="addUser" class="section">
+  <h2>Add User</h2>
+  <input id="add_mobile" placeholder="Mobile">
+  <input id="add_uname" placeholder="Username">
+  <input id="add_opbal" placeholder="Opening Balance">
+  <button onclick="addUser()">Add</button>
+</div>
+
+<div id="login" class="section">
+  <h2>Login</h2>
+  <input id="login_mobile" placeholder="Mobile">
+  <button onclick="login()">Login</button>
+</div>
+
+<div id="credit" class="section">
+  <h2>Credit</h2>
+  <input id="credit_date" type="date">
+  <input id="credit_note" placeholder="Note">
+  <input id="credit_amount" placeholder="Amount">
+  <button onclick="creditAmount()">Add Credit</button>
+</div>
+
+<div id="debit" class="section">
+  <h2>Debit</h2>
+  <input id="debit_date" type="date">
+  <input id="debit_note" placeholder="Note">
+  <input id="debit_amount" placeholder="Amount">
+  <button onclick="debitAmount()">Add Debit</button>
+</div>
+
+<div id="transactions" class="section">
+  <h2>Transaction History</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th><th>Note</th><th>Debit</th><th>Credit</th>
+      </tr>
+    </thead>
+    <tbody id="transList"></tbody>
+  </table>
+</div>
+
+<script>
+const API = "https://codingshika.com/APP/EXP/";
+
+function showSection(id) {
+  document.querySelectorAll(".section").forEach(sec => sec.style.display = "none");
+  document.getElementById(id).style.display = "block";
+  document.getElementById('output').textContent = "";
+  if (id === "transactions") loadTransactions();
+}
+
+function setUser(id) {
+  sessionStorage.setItem("uid", id);
+}
+function getUser() {
+  return sessionStorage.getItem("uid");
+}
+function logout() {
+  sessionStorage.removeItem("uid");
+  alert("Logged out");
+  showSection("login");
+}
+
+function addUser() {
+  const formData = new FormData();
+  formData.append("mobile", document.getElementById("add_mobile").value);
+  formData.append("uname", document.getElementById("add_uname").value);
+  formData.append("opbal", document.getElementById("add_opbal").value);
+
+  axios.post(API + "add_user.php", formData)
+    .then(res => {
+      const data = res.data;
+      if (data.posts && data.posts.status === "200") {
+        document.getElementById("output").textContent = "✅ User added successfully!";
+      } else {
+        document.getElementById("output").textContent = "⚠️ Failed to add user.";
+      }
+    })
+    .catch(err => {
+      document.getElementById("output").textContent = "❌ Error: " + err.message;
+    });
+}
+
+function login() {
+  const formData = new FormData();
+  formData.append("mobile", document.getElementById("login_mobile").value);
+
+  axios.post(API + "user_login.php", formData)
+    .then(res => {
+      const data = res.data;
+      if (data.posts && data.posts.id) {
+        setUser(data.posts.id);
+        document.getElementById("output").textContent = "✅ Logged in successfully!";
+        showSection("credit");
+      } else {
+        document.getElementById("output").textContent = "❌ Login failed.";
+      }
+    })
+    .catch(err => {
+      document.getElementById("output").textContent = "❌ Error: " + err.message;
+    });
+}
+
+function creditAmount() {
+  const uid = getUser();
+  if (!uid) return alert("Login first!");
+
+  const formData = new FormData();
+  formData.append("uid", uid);
+  formData.append("date", document.getElementById("credit_date").value);
+  formData.append("note", document.getElementById("credit_note").value);
+  formData.append("debit", "0");
+  formData.append("credit", document.getElementById("credit_amount").value);
+
+  axios.post(API + "insert_credit.php", formData)
+    .then(res => {
+      document.getElementById("output").textContent = "✅ Credit added!";
+    })
+    .catch(err => {
+      document.getElementById("output").textContent = "❌ Error: " + err.message;
+    });
+}
+
+function debitAmount() {
+  const uid = getUser();
+  if (!uid) return alert("Login first!");
+
+  const formData = new FormData();
+  formData.append("uid", uid);
+  formData.append("date", document.getElementById("debit_date").value);
+  formData.append("note", document.getElementById("debit_note").value);
+  formData.append("debit", document.getElementById("debit_amount").value);
+  formData.append("credit", "0");
+
+  axios.post(API + "insert_debit.php", formData)
+    .then(res => {
+      document.getElementById("output").textContent = "✅ Debit added!";
+    })
+    .catch(err => {
+      document.getElementById("output").textContent = "❌ Error: " + err.message;
+    });
+}
+
+function loadTransactions() {
+  const uid = getUser();
+  if (!uid) return alert("Login first!");
+
+  axios.get(API + "transaction_list.php?uid=" + uid)
+    .then(res => {
+      const data = res.data;
+      let html = "";
+      if (data && data.posts) {
+        data.posts.forEach(t => {
+          html += `<tr><td>${t.date}</td><td>${t.note}</td><td>${t.debit}</td><td>${t.credit}</td></tr>`;
+        });
+      } else {
+        html = "<tr><td colspan='4'>No data</td></tr>";
+      }
+      document.getElementById("transList").innerHTML = html;
+    })
+    .catch(err => {
+      document.getElementById("transList").innerHTML = "<tr><td colspan='4'>Error loading transactions</td></tr>";
+    });
+}
+
+window.onload = () => {
+  getUser() ? showSection("credit") : showSection("login");
+};
+</script>
+
+</body>
+</html> 
